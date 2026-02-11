@@ -1,0 +1,650 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DebugMate — Complete System Flowchart</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'dark',
+            themeVariables: {
+                darkMode: true,
+                background: '#161b22',
+                primaryColor: '#1f6feb',
+                primaryTextColor: '#c9d1d9',
+                primaryBorderColor: '#30363d',
+                lineColor: '#58a6ff',
+                secondaryColor: '#21262d',
+                tertiaryColor: '#161b22',
+                fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif',
+                fontSize: '14px',
+                nodeBorder: '#30363d',
+                clusterBkg: '#21262d',
+                clusterBorder: '#30363d',
+                edgeLabelBackground: '#161b22'
+            },
+            flowchart: { htmlLabels: true, curve: 'basis', useMaxWidth: true }
+        });
+    </script>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --surface: #161b22;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --heading: #58a6ff;
+            --accent: #f0883e;
+            --muted: #8b949e;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 {
+            text-align: center;
+            color: var(--heading);
+            font-size: 2.2em;
+            margin: 30px 0 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: var(--muted);
+            font-style: italic;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+        .section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin: 30px 0;
+            padding: 30px;
+            overflow-x: auto;
+        }
+        .section h2 {
+            color: var(--accent);
+            font-size: 1.4em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        .section h2 span.num { color: var(--heading); font-weight: 800; }
+        .mermaid { margin: 20px 0; }
+        .text-section {
+            background: #1c2128;
+            border-radius: 8px;
+            padding: 20px;
+            font-family: 'SFMono-Regular', Consolas, monospace;
+            font-size: 0.85em;
+            white-space: pre-wrap;
+            line-height: 1.8;
+            color: #adbac7;
+            overflow-x: auto;
+        }
+        .dep-map {
+            font-family: 'SFMono-Regular', Consolas, monospace;
+            font-size: 0.85em;
+            white-space: pre;
+            line-height: 1.7;
+            color: #adbac7;
+            background: #1c2128;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th, td { border: 1px solid var(--border); padding: 10px 14px; text-align: left; font-size: 0.9em; }
+        th { background: #1c2128; color: var(--heading); font-weight: 600; }
+        td { color: var(--text); }
+        tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+        .toc {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 25px 35px;
+            margin: 20px 0 40px;
+        }
+        .toc h3 { color: var(--heading); margin-bottom: 12px; }
+        .toc a { color: var(--text); text-decoration: none; display: block; padding: 4px 0; font-size: 0.95em; }
+        .toc a:hover { color: var(--heading); }
+        .toc a span.n { color: var(--accent); font-weight: 600; margin-right: 8px; }
+    </style>
+</head>
+<body>
+<div class="container">
+
+<h1>🔧 DebugMate — Complete System Flowchart</h1>
+<p class="subtitle">Every step, every possibility, every function call — in detail.</p>
+
+<div class="toc">
+    <h3>📑 Table of Contents</h3>
+    <a href="#s1"><span class="n">1.</span> System Startup Flow</a>
+    <a href="#s2"><span class="n">2.</span> Slack Event Handling — Three Entry Points</a>
+    <a href="#s3"><span class="n">3.</span> Agent Query Processing — The Core Loop</a>
+    <a href="#s4"><span class="n">4.</span> AI Gateway LLM — How Each LLM Call Works</a>
+    <a href="#s5"><span class="n">5.</span> TOOL: search_logstore — Full RAG Pipeline</a>
+    <a href="#s6"><span class="n">6.</span> TOOL: get_all_logs_for_request_id</a>
+    <a href="#s7"><span class="n">7.</span> TOOL: search_panic_logs</a>
+    <a href="#s8"><span class="n">8.</span> TOOL: retrieve_stored_logs</a>
+    <a href="#s9"><span class="n">9.</span> TOOL: search_admin_apis</a>
+    <a href="#s10"><span class="n">10.</span> TOOL: search_aws_cli</a>
+    <a href="#s11"><span class="n">11.</span> TOOL: search_codebase (Disabled)</a>
+    <a href="#s12"><span class="n">12.</span> Log Cleaning Pipeline</a>
+    <a href="#s13"><span class="n">13.</span> Session and Memory Architecture</a>
+    <a href="#s14"><span class="n">14.</span> Midnight Cleanup Flow</a>
+    <a href="#s15"><span class="n">15.</span> AI Gateway Embeddings Flow</a>
+    <a href="#s16"><span class="n">16.</span> Complete End-to-End Example</a>
+    <a href="#s17"><span class="n">17.</span> File Dependency Map</a>
+    <a href="#s18"><span class="n">18.</span> Data Flow Summary Table</a>
+</div>
+
+<!-- SECTION 1 -->
+<div class="section" id="s1">
+<h2><span class="num">1.</span> SYSTEM STARTUP FLOW</h2>
+<pre class="mermaid">
+flowchart TD
+    START["python3 bot/slack_bot.py"] --> DOTENV["load_dotenv - Loads .env into os.environ"]
+    DOTENV --> SYSPATH["sys.path.insert 0 parent_dir"]
+    SYSPATH --> IMPORT["import agent.py"]
+    IMPORT --> CFG["core/config.py loads env vars and service config"]
+    IMPORT --> LLM_MOD["core/ai_gateway_llm.py classes ready"]
+    IMPORT --> PROMPT["core/prompt.py builds system prompt"]
+    IMPORT --> TOOLS["tools/__init__.py re-exports all tools"]
+    CFG --> CREATE_LLM["llm = AIGatewayLLM with AI_GATEWAY_CONFIG"]
+    LLM_MOD --> CREATE_LLM
+    PROMPT --> CREATE_PROMPT["prompt = ChatPromptTemplate with system prompt"]
+    CREATE_LLM --> CREATE_MEM["memory = MemorySaver"]
+    CREATE_PROMPT --> CREATE_AGENT["agent = create_react_agent with llm and 6 tools"]
+    CREATE_MEM --> CREATE_AGENT
+    TOOLS --> CREATE_AGENT
+    CREATE_AGENT --> VALIDATE{"SLACK tokens present?"}
+    VALIDATE -->|Missing| ERROR["raise ValueError"]
+    VALIDATE -->|Present| INIT["app = App with token"]
+    INIT --> SCHED["start_midnight_scheduler - threading.Timer daemon"]
+    SCHED --> SOCKET["SocketModeHandler.start - Bot is LIVE"]
+    style START fill:#4CAF50,color:white
+    style SOCKET fill:#2196F3,color:white
+    style ERROR fill:#f44336,color:white
+</pre>
+</div>
+
+<!-- SECTION 2 -->
+<div class="section" id="s2">
+<h2><span class="num">2.</span> SLACK EVENT HANDLING — Three Entry Points</h2>
+<pre class="mermaid">
+flowchart TD
+    SLACK["Slack Event Received"] --> TYPE{Event Type}
+    TYPE -->|"at-mention"| MENTION["app_mention handler"]
+    TYPE -->|"Direct Message"| DM["message handler"]
+    TYPE -->|"slash sre"| SLASH["slash command handler"]
+    TYPE -->|"Home tab"| HOME["app_home_opened handler"]
+    MENTION --> M_EXT["Extract user_id channel thread_ts and clean text"]
+    M_EXT --> M_EMPTY{Text empty?}
+    M_EMPTY -->|Yes| M_GREET["Post greeting message"]
+    M_EMPTY -->|No| M_DEDUP{Already processing?}
+    M_DEDUP -->|Yes| M_SKIP["Skip duplicate"]
+    M_DEDUP -->|No| M_ADD["Add to processing_messages set"]
+    M_ADD --> M_THREAD["Thread: process_agent_query"]
+    DM --> D_FILTER{Bot message or not IM?}
+    D_FILTER -->|Yes| D_IGNORE["Ignore"]
+    D_FILTER -->|No| D_CMD{Special command?}
+    D_CMD -->|help| D_HELP["Post help examples"]
+    D_CMD -->|reset| D_RESET["Clear session"]
+    D_CMD -->|session| D_SESSION["Show session_id"]
+    D_CMD -->|Normal| D_DEDUP{Already processing?}
+    D_DEDUP -->|Yes| D_SKIP["Skip"]
+    D_DEDUP -->|No| D_THREAD["Thread: process_agent_query"]
+    SLASH --> S_ACK["ack within 3 seconds"]
+    S_ACK --> S_EMPTY{Text empty?}
+    S_EMPTY -->|Yes| S_ERR["Ephemeral error"]
+    S_EMPTY -->|No| S_POST["Post user query to channel"]
+    S_POST --> S_THREAD["Thread: process_agent_query"]
+    HOME --> H_VIEW["Publish home tab view"]
+    style SLACK fill:#4A154B,color:white
+    style M_THREAD fill:#2196F3,color:white
+    style D_THREAD fill:#2196F3,color:white
+    style S_THREAD fill:#2196F3,color:white
+</pre>
+</div>
+
+<!-- SECTION 3 -->
+<div class="section" id="s3">
+<h2><span class="num">3.</span> AGENT QUERY PROCESSING — The Core Loop</h2>
+<pre class="mermaid">
+flowchart TD
+    PQ["process_agent_query"] --> SK["session_key = thread_ts or channel"]
+    SK --> GS["Get session_id from thread_sessions"]
+    GS --> THINK["Post: Processing your request..."]
+    THINK --> RUN["run_agent_with_session query session_id"]
+    RUN --> UUID{session_id is None?}
+    UUID -->|Yes| NEW["Generate new uuid4"]
+    UUID -->|No| EXIST["Use existing"]
+    NEW --> CFG["config with thread_id and recursion_limit 100"]
+    EXIST --> CFG
+    CFG --> CTX["set_session_context session_id"]
+    CTX --> STREAM["agent.stream HumanMessage with config"]
+    STREAM --> LOOP["For each step in stream"]
+    LOOP --> MSG["Get last message from step"]
+    MSG --> MTYPE{Message type?}
+    MTYPE -->|"AI with tool_calls"| TOOL["LLM chose a tool - ReAct Act phase"]
+    TOOL --> EXEC["LangGraph auto-executes tool"]
+    EXEC --> RESULT["ToolMessage fed back to LLM"]
+    RESULT --> LOOP
+    MTYPE -->|"AI without tool_calls"| FINAL_C["Candidate final answer"]
+    FINAL_C --> LOOP
+    MTYPE -->|"Human or Tool msg"| LOOP
+    LOOP -->|"Stream done"| CHECK{Has final content?}
+    CHECK -->|Yes| FINAL["Use response content"]
+    CHECK -->|No| FALLBACK["I apologize fallback"]
+    FINAL --> RET["Return response and session_id"]
+    FALLBACK --> RET
+    RET --> STORE["Store session in thread_sessions"]
+    STORE --> CLEAN["cleanup_old_sessions if over 100"]
+    CLEAN --> DEL["Delete Processing message"]
+    DEL --> FMT["format_response_for_slack"]
+    FMT --> LEN{Length over 3900?}
+    LEN -->|Yes| CHUNK["Split into Part X/Y chunks"]
+    LEN -->|No| POST["Post single message"]
+    CHUNK --> DONE["Response delivered"]
+    POST --> DONE
+    style PQ fill:#FF9800,color:white
+    style STREAM fill:#9C27B0,color:white
+    style DONE fill:#4CAF50,color:white
+    style EXEC fill:#E91E63,color:white
+</pre>
+</div>
+
+<!-- SECTION 4 -->
+<div class="section" id="s4">
+<h2><span class="num">4.</span> AI GATEWAY LLM — How Each LLM Call Works</h2>
+<pre class="mermaid">
+flowchart TD
+    INV["llm._generate messages"] --> CONV["Convert LangChain messages to Gateway format"]
+    CONV --> PAY["Build payload: model messages config client_options"]
+    PAY --> HT{"Tools bound?"}
+    HT -->|Yes| AT["Add tool_option with tools and AUTO choice"]
+    HT -->|No| ST["No tool_option"]
+    AT --> API["POST base_url/chat/completion"]
+    ST --> API
+    API --> S200{Status 200?}
+    S200 -->|No| ERR["raise Exception API error"]
+    S200 -->|Yes| PARSE["Parse response JSON"]
+    PARSE --> EXT["Extract choices content parts"]
+    EXT --> PT{Part type?}
+    PT -->|"TEXT type=1"| TC["Append to text_content"]
+    PT -->|"TOOL_USE type=6"| TCC["Extract tool_calls: name args id"]
+    TC --> BUILD{Has tool_calls?}
+    TCC --> BUILD
+    BUILD -->|Yes| AIT["AIMessage with text and tool_calls"]
+    BUILD -->|No| AITXT["AIMessage with text only"]
+    AIT --> RES["Return ChatResult"]
+    AITXT --> RES
+    style INV fill:#673AB7,color:white
+    style API fill:#2196F3,color:white
+    style ERR fill:#f44336,color:white
+    style RES fill:#4CAF50,color:white
+</pre>
+</div>
+
+<!-- SECTION 5 -->
+<div class="section" id="s5">
+<h2><span class="num">5.</span> TOOL: search_logstore — Full RAG Pipeline</h2>
+<pre class="mermaid">
+flowchart TD
+    SL["search_logstore"] --> CALC["Calculate time window ts_from and ts_to"]
+    CALC --> PARSE["Extract method name from RPC path"]
+    PARSE --> FILT["Build filters: method user-id errors_only"]
+    FILT --> POST["POST LOGSTORE_URL with headers and payload"]
+    POST --> CT{Response type?}
+    CT -->|"HTML"| AUTH["Return AUTH_REQUIRED"]
+    CT -->|"JSON"| PJ["Parse response JSON"]
+    PJ --> VD{Valid dict?}
+    VD -->|No| INV["Return INVALID_RESPONSE"]
+    VD -->|Yes| HITS["Extract hits and messages"]
+    HITS --> HM{Messages found?}
+    HM -->|No| NOLOG["Return total_hits 0"]
+    HM -->|Yes| COLL["Build collection name for session"]
+    COLL --> INIT["initialize_vector_db lazy init"]
+    INIT --> IC{Already initialized?}
+    IC -->|Yes| GC["Get or create collection"]
+    IC -->|No| TRY["Try embedding models in order"]
+    TRY --> EMB{Model worked?}
+    EMB -->|No| OFF["vector_db disabled"]
+    EMB -->|Yes| ON["vector_db enabled"]
+    OFF --> FB["Fallback: simple dedup top 10"]
+    ON --> GC
+    GC --> DEDUP["MD5 hash dedup: skip stored docs"]
+    DEDUP --> HN{New docs?}
+    HN -->|No| SKIP["All duplicates"]
+    HN -->|Yes| ADD["store.add_texts: embed and store"]
+    ADD --> SC
+    SKIP --> SC{stored count > 0?}
+    SC -->|No| FB
+    SC -->|Yes| REF["refine_search_prompt via LLM"]
+    REF --> SEM["similarity_search refined query k=10"]
+    SEM --> LIM["Return top 10 relevant logs"]
+    FB --> LIM
+    LIM --> RES["Return JSON with hits and processed_logs"]
+    style SL fill:#E91E63,color:white
+    style POST fill:#2196F3,color:white
+    style ADD fill:#9C27B0,color:white
+    style SEM fill:#FF9800,color:white
+    style AUTH fill:#f44336,color:white
+</pre>
+</div>
+
+<!-- SECTION 6 -->
+<div class="section" id="s6">
+<h2><span class="num">6.</span> TOOL: get_all_logs_for_request_id</h2>
+<pre class="mermaid">
+flowchart TD
+    GL["get_all_logs_for_request_id"] --> CALC["Calculate time window"]
+    CALC --> FILT["Filter: body.request_id LIKE request_id"]
+    FILT --> LT["Get logtype from config"]
+    LT --> POST["POST LOGSTORE_URL"]
+    POST --> HTML{HTML response?}
+    HTML -->|Yes| AUTH["Return AUTH_REQUIRED"]
+    HTML -->|No| PARSE["Parse hits extract messages"]
+    PARSE --> ZERO{0 messages?}
+    ZERO -->|Yes| NOLOG["Return NO_LOGS_FOUND with suggestions"]
+    ZERO -->|No| COLL["Build collection: req_requestid_env"]
+    COLL --> RAG["Same RAG pipeline: store refine search"]
+    style GL fill:#E91E63,color:white
+</pre>
+</div>
+
+<!-- SECTION 7 -->
+<div class="section" id="s7">
+<h2><span class="num">7.</span> TOOL: search_panic_logs</h2>
+<pre class="mermaid">
+flowchart TD
+    PL["search_panic_logs lookback_minutes=10"] --> TIME["ts_from = now - minutes*60"]
+    TIME --> FILT["Filter: msg LIKE panic"]
+    FILT --> POST["POST LOGSTORE_URL env=stag"]
+    POST --> CHK{Error?}
+    CHK -->|Yes| ERR["Return error JSON"]
+    CHK -->|No| EXT["Extract messages from hits"]
+    EXT --> ZERO{0 messages?}
+    ZERO -->|Yes| NONE["Return total_hits 0"]
+    ZERO -->|No| COLL["Collection: panic_logs_stag"]
+    COLL --> RAG["RAG: store refine search"]
+    style PL fill:#E91E63,color:white
+</pre>
+</div>
+
+<!-- SECTION 8 -->
+<div class="section" id="s8">
+<h2><span class="num">8.</span> TOOL: retrieve_stored_logs (Cross-Session Search)</h2>
+<pre class="mermaid">
+flowchart TD
+    RL["retrieve_stored_logs search_query n=10"] --> INIT{VectorDB available?}
+    INIT -->|No| VERR["Return VECTOR_DB_UNAVAILABLE"]
+    INIT -->|Yes| FIND["Find session collections from registry"]
+    FIND --> HC{Any collections?}
+    HC -->|No| NOLOG["Return NO_STORED_LOGS"]
+    HC -->|Yes| REF["refine_search_prompt"]
+    REF --> SEARCH["For each collection: similarity_search_with_score"]
+    SEARCH --> HR{Results found?}
+    HR -->|No| NREL["Return NO_RELEVANT_LOGS"]
+    HR -->|Yes| SORT["Sort by score DESC take top n"]
+    SORT --> RET["Return JSON with results"]
+    style RL fill:#FF9800,color:white
+    style SEARCH fill:#9C27B0,color:white
+</pre>
+</div>
+
+<!-- SECTION 9 -->
+<div class="section" id="s9">
+<h2><span class="num">9.</span> TOOL: search_admin_apis</h2>
+<pre class="mermaid">
+flowchart TD
+    AA["search_admin_apis user_id plan_type"] --> DUM{user_id is 777?}
+    DUM -->|Yes| NODATA["Return no membership data"]
+    DUM -->|No| POST["POST EDITION_API_URL with headers"]
+    POST --> OK{HTTP OK?}
+    OK -->|No| ERR["Return ADMIN API ERROR"]
+    OK -->|Yes| PARSE["Parse JSON response"]
+    PARSE --> CLEAN["remove_assets_and_images recursively"]
+    CLEAN --> FMT["Return formatted user data"]
+    style AA fill:#4CAF50,color:white
+</pre>
+</div>
+
+<!-- SECTION 10 -->
+<div class="section" id="s10">
+<h2><span class="num">10.</span> TOOL: search_aws_cli</h2>
+<pre class="mermaid">
+flowchart TD
+    AWS["search_aws_cli table_name partition_key"] --> TBL["table = dynamodb.Table"]
+    TBL --> QRY["table.query KeyConditionExpression"]
+    QRY --> ITEMS["Get Items from response"]
+    ITEMS --> ENC["json.dumps with DecimalEncoder"]
+    ENC --> RET["Return AWS DynamoDB result"]
+    style AWS fill:#FF9800,color:white
+</pre>
+</div>
+
+<!-- SECTION 11 -->
+<div class="section" id="s11">
+<h2><span class="num">11.</span> TOOL: search_codebase (Currently Disabled)</h2>
+<pre class="mermaid">
+flowchart TD
+    CB["search_codebase context keywords"] --> CHK{retriever is None?}
+    CHK -->|Yes| DIS["Return: Code search disabled"]
+    CHK -->|No| ENH["Build enhanced_query"]
+    ENH --> RETR["docs = retriever.invoke"]
+    RETR --> HD{Docs found?}
+    HD -->|No| NOCODE["Return no relevant code"]
+    HD -->|Yes| FMT["Format top 5 docs"]
+    FMT --> LLM["LLM analyzes code"]
+    LLM --> RET["Return analysis"]
+    style CB fill:#607D8B,color:white
+    style DIS fill:#9E9E9E,color:white
+</pre>
+</div>
+
+<!-- SECTION 12 -->
+<div class="section" id="s12">
+<h2><span class="num">12.</span> LOG CLEANING PIPELINE</h2>
+<pre class="mermaid">
+flowchart TD
+    CLM["clean_log_message"] --> LOAD["Load droppable_fields from SERVICE_CONFIGS"]
+    LOAD --> DEF["Set default keep_fields if not configured"]
+    DEF --> CLEAN["Remove newlines tabs backslashes quotes"]
+    CLEAN --> PRES["Extract and preserve important fields"]
+    PRES --> DROP["Drop config-specified fields via regex"]
+    DROP --> ERRS["Extract error patterns"]
+    ERRS --> COMB{Preserved parts found?}
+    COMB -->|Yes| JOIN["Join preserved parts with pipe separator"]
+    COMB -->|No| KEEP["Use full cleaned message"]
+    JOIN --> STOP["Remove stopwords"]
+    KEEP --> STOP
+    STOP --> TRUNC["Collapse spaces limit to 500 chars"]
+    TRUNC --> RET["Return cleaned log"]
+    style CLM fill:#795548,color:white
+</pre>
+</div>
+
+<!-- SECTION 13 -->
+<div class="section" id="s13">
+<h2><span class="num">13.</span> SESSION AND MEMORY ARCHITECTURE</h2>
+<pre class="mermaid">
+flowchart TD
+    subgraph SLACK["Slack Thread"]
+        MSG1["Msg 1: Check logs for user 123"]
+        MSG2["Msg 2: What errors did you find?"]
+        MSG3["Msg 3: Check their subscription"]
+    end
+    subgraph SESS["thread_sessions dict"]
+        TS["thread_ts maps to session_id UUID"]
+    end
+    subgraph LANG["LangGraph MemorySaver"]
+        MEM["Full conversation history per thread_id"]
+    end
+    subgraph VECT["_vector_stores dict"]
+        VS1["session_logs_Method_env: InMemoryVectorStore"]
+        VS2["session_req_id_env: InMemoryVectorStore"]
+    end
+    subgraph SCOL["_session_collections dict"]
+        SC["session_id maps to set of collection names"]
+    end
+    MSG1 -->|"New thread"| TS
+    MSG2 -->|"Same thread"| TS
+    MSG3 -->|"Same thread"| TS
+    TS -->|"run_agent_with_session"| MEM
+    TS -->|"set_session_context"| SC
+    MEM --> TOOLS["Tool calls reuse same collections"]
+    TOOLS --> VS1
+    TOOLS --> VS2
+    SC --> VS1
+    SC --> VS2
+    style SLACK fill:#4A154B,color:white
+    style LANG fill:#9C27B0,color:white
+    style VECT fill:#E91E63,color:white
+</pre>
+</div>
+
+<!-- SECTION 14 -->
+<div class="section" id="s14">
+<h2><span class="num">14.</span> MIDNIGHT CLEANUP FLOW</h2>
+<pre class="mermaid">
+flowchart TD
+    BOOT["Bot startup"] --> CALC["Calculate seconds until midnight"]
+    CALC --> TMR["threading.Timer with daemon=True"]
+    TMR -->|"At 00:00"| CLEAN["_midnight_cleanup_loop"]
+    CLEAN --> C1["cleanup_all_collections: clear vector_stores hashes sessions"]
+    C1 --> C2["Clear thread_sessions mapping"]
+    C2 --> RESCHED["Schedule next midnight timer"]
+    RESCHED -->|"Next midnight"| CLEAN
+    style CLEAN fill:#f44336,color:white
+    style BOOT fill:#4CAF50,color:white
+</pre>
+</div>
+
+<!-- SECTION 15 -->
+<div class="section" id="s15">
+<h2><span class="num">15.</span> AI GATEWAY EMBEDDINGS FLOW</h2>
+<pre class="mermaid">
+flowchart TD
+    EMB["AIGatewayEmbeddings._embed texts"] --> PAY["Build payload: model inputs config"]
+    PAY --> DIM{output_dim set?}
+    DIM -->|Yes| ADD["Add output_dim to config"]
+    DIM -->|No| SKIP["No dimension override"]
+    ADD --> POST["POST base_url/embeddings"]
+    SKIP --> POST
+    POST --> S{Status 200?}
+    S -->|No| ERR["raise Exception"]
+    S -->|Yes| PARSE["Try 3 response formats"]
+    PARSE --> HAS{Embeddings found?}
+    HAS -->|No| EERR["raise Exception no embeddings"]
+    HAS -->|Yes| RET["Return float vectors"]
+    style EMB fill:#673AB7,color:white
+</pre>
+</div>
+
+<!-- SECTION 16 -->
+<div class="section" id="s16">
+<h2><span class="num">16.</span> COMPLETE END-TO-END EXAMPLE</h2>
+<div class="text-section">User in Slack: "@DebugMate check logs for user 162434451 GetApplicableCampaigns"
+
+1. SLACK EVENT
+   └─ @app_mention → extract text, thread_ts
+   └─ threading.Thread → process_agent_query()
+
+2. SESSION
+   └─ session_key = thread_ts = "1234567890.123456"
+   └─ session_id = None (new thread) → uuid4() = "a1b2c3d4-..."
+   └─ set_session_context("a1b2c3d4-...")
+
+3. AGENT (ReAct Loop)
+   └─ LLM receives: system_prompt + HumanMessage("check logs for user...")
+   └─ LLM decides: Call search_logstore(
+        identifier="162434451",
+        rpc_method="GetApplicableCampaigns",
+        hours_ago=0, environment="prod"
+      )
+
+4. TOOL: search_logstore
+   ├─ Time window: [now-24h, now]
+   ├─ Filters: l-method-name LIKE "GetApplicableCampaigns", user-id LIKE "162434451"
+   ├─ POST logstore API → 47 hits
+   ├─ Collection: "s_a1b2c3d4e5f6_logs_GetApplicableCa_prod"
+   ├─ store_logs_in_vector_db():
+   │   ├─ initialize_vector_db() → text-embedding-3-large OK
+   │   ├─ Hash dedup: 47 unique → 47 new docs
+   │   └─ store.add_texts(47 cleaned logs)
+   ├─ refine_search_prompt() → LLM generates refined query
+   ├─ semantic_search_logs(refined_query, k=10) → 10 results
+   └─ Return JSON: {total_hits: 47, relevant_logs_count: 10}
+
+5. AGENT continues
+   └─ LLM analyzes 10 logs → formats human-readable response
+
+6. SLACK RESPONSE
+   └─ Delete "Processing..." → format → post to thread
+
+7. FOLLOW-UP (same thread)
+   └─ "What errors?" → same session_id → retrieve_stored_logs
+   └─ Searches EXISTING embeddings (no new API call!)</div>
+</div>
+
+<!-- SECTION 17 -->
+<div class="section" id="s17">
+<h2><span class="num">17.</span> FILE DEPENDENCY MAP</h2>
+<div class="dep-map">.env                              ← All secrets, URLs, tokens, cookies
+.env.example                      ← Safe template for commits
+│
+bot/slack_bot.py                  ← Entry point: load_dotenv() → import agent
+│   ├── agent.py                  ← ReAct agent: LLM + tools + memory
+│   │   ├── core/config.py        ← load_dotenv(), all config dicts
+│   │   ├── core/prompt.py        ← build_system_prompt() from SERVICE_CONFIGS
+│   │   ├── core/ai_gateway_llm.py← AIGatewayLLM, AIGatewayEmbeddings
+│   │   ├── core/models.py        ← Pydantic schemas
+│   │   └── tools/__init__.py     ← Re-exports all tools
+│   │       ├── tools/logstore/   ← RAG pipeline + utils
+│   │       ├── tools/codebase/   ← Code search (disabled)
+│   │       ├── tools/admin_api/  ← Edition API queries
+│   │       └── tools/aws/        ← DynamoDB queries
+│   └── cleanup_all_collections   ← Midnight purge
+│
+configs/                          ← Service-specific JSON config
+legacy/sre_agent.py               ← Old monolithic version
+docs/                             ← Documentation</div>
+</div>
+
+<!-- SECTION 18 -->
+<div class="section" id="s18">
+<h2><span class="num">18.</span> DATA FLOW SUMMARY TABLE</h2>
+<table>
+    <thead>
+        <tr><th>Step</th><th>Component</th><th>Input</th><th>Output</th><th>External Call?</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>1</td><td>Slack Bot</td><td>Slack event (mention/DM/command)</td><td>Parsed text + thread_ts</td><td>No</td></tr>
+        <tr><td>2</td><td>Session Manager</td><td>thread_ts</td><td>session_id (UUID)</td><td>No</td></tr>
+        <tr><td>3</td><td>Agent (LangGraph)</td><td>HumanMessage + history</td><td>Tool calls or final answer</td><td>AI Gateway LLM</td></tr>
+        <tr><td>4a</td><td>search_logstore</td><td>identifier, method, env</td><td>10 relevant logs (JSON)</td><td>Logstore API + AI Gateway</td></tr>
+        <tr><td>4b</td><td>get_all_logs_for_request_id</td><td>request_id, env</td><td>10 relevant logs (JSON)</td><td>Logstore API + AI Gateway</td></tr>
+        <tr><td>4c</td><td>search_panic_logs</td><td>lookback_minutes</td><td>Panic logs (JSON)</td><td>Logstore API + AI Gateway</td></tr>
+        <tr><td>4d</td><td>retrieve_stored_logs</td><td>search_query</td><td>Logs from existing embeddings</td><td>AI Gateway (embed only)</td></tr>
+        <tr><td>4e</td><td>search_admin_apis</td><td>user_id, plan_type</td><td>User subscription data</td><td>Edition API</td></tr>
+        <tr><td>4f</td><td>search_aws_cli</td><td>table, partition_key</td><td>DynamoDB items (JSON)</td><td>AWS DynamoDB</td></tr>
+        <tr><td>4g</td><td>search_codebase</td><td>context, keywords</td><td>Code analysis (disabled)</td><td>None (disabled)</td></tr>
+        <tr><td>5</td><td>Agent (LangGraph)</td><td>Tool results</td><td>Analyzed response text</td><td>AI Gateway LLM</td></tr>
+        <tr><td>6</td><td>Slack Bot</td><td>Response text</td><td>Formatted Slack message</td><td>Slack API</td></tr>
+        <tr><td>7</td><td>Midnight Scheduler</td><td>Timer event</td><td>Cleared memory</td><td>No</td></tr>
+    </tbody>
+</table>
+</div>
+
+</div>
+</body>
+</html>

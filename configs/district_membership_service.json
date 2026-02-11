@@ -1,0 +1,947 @@
+
+{
+  "service_name": "district-membership-service",
+  "language": "golang",
+  "framework": "grpc",
+  "log_compaction_config": {
+    "max_history_size": 500,
+    "compaction_trigger_interval": 50,
+    "size_reduction_target_percent": 90
+  },
+  "log_patterns": {
+    "method_name_format": "PascalCase",
+    "trace_id_field": "request-id",
+    "request_id_field": "request-id",
+    "user_id_field": "user-id",
+    "error_field": "error",
+    "entry_pattern": "new request - {method_name} | body: {body}",
+    "completion_pattern": "request completed - {method_name} | request body: {body} | response : {response}",
+    "failure_pattern": "[failed] request - {method_name} | request body: {body}",
+    "always_log_fields": [
+      "request-id",
+      "user-id",
+      "l-method-name",
+      "l-start-time",
+      "l-end-time",
+      "l-latency",
+      "error"
+    ]
+  },
+  "rpc_services": {
+    "MembershipAggregatorService": {
+      "service_path": "/eternal_district.membership.MembershipAggregatorService",
+      "methods": [
+        {
+          "name": "GetApplicableCampaigns",
+          "description": "Fetches applicable campaigns and subscriptions for user",
+          "request_params_essential": [
+            "plan_types",
+            "fact_data.user_details.user_id",
+            "fact_data.user_details.location_details.city_id",
+            "fact_data.user_details.location_details.country_id",
+            "fact_data.business_details.location_details.city_id",
+            "fact_data.business_details.location_details.country_id",
+            "fact_data.cart_details.service_type",
+            "asset_type"
+          ],
+          "request_params_droppable": {
+            "always_drop": [
+              {
+                "field": "fact_data.cart_details.cart_items",
+                "reason": "Large array, not needed for debugging subscription/campaign logic",
+                "size_impact": "5-20KB"
+              },
+              {
+                "field": "fact_data.cart_details.cart_discounts",
+                "reason": "Not used in campaign selection logic",
+                "size_impact": "1-5KB"
+              },
+              {
+                "field": "fact_data.cart_details.totals",
+                "reason": "Only grand total matters, array is verbose",
+                "size_impact": "0.5-2KB"
+              },
+              {
+                "field": "fact_data.cart_details.charges",
+                "reason": "Not relevant for membership/campaign selection",
+                "size_impact": "0.5-2KB"
+              },
+              {
+                "field": "fact_data.ps_properties",
+                "reason": "Product studio properties rarely used in debugging",
+                "size_impact": "1-10KB"
+              },
+              {
+                "field": "fact_data.business_details.location_details.p_city_id",
+                "reason": "Only needed for Movies service (business_city_secondary rule). For Dining/Events, primary city_id is sufficient",
+                "size_impact": "0.1KB",
+                "when_to_keep": "SERVICE_TYPE_MOVIE debugging only"
+              },
+              {
+                "field": "skip_order_ids",
+                "reason": "Only used for exclusion, not debugging failures",
+                "size_impact": "0.1-1KB"
+              }
+            ],
+            "response_droppable": [
+              {
+                "field": "assets",
+                "reason": "UI rendering array, not needed for backend debugging",
+                "size_impact": "10-50KB",
+                "when_to_keep": "UI rendering issues only"
+              },
+              {
+                "field": "subscriptions[].benefits",
+                "reason": "Detailed benefit array, keep only count/summary",
+                "size_impact": "5-30KB per subscription",
+                "alternative": "Log benefit count only"
+              },
+              {
+                "field": "subscriptions[].campaign_details.assets",
+                "reason": "Nested UI assets, extremely verbose",
+                "size_impact": "20-100KB",
+                "when_to_keep": "Never for backend debugging"
+              },
+              {
+                "field": "campaigns[].assets",
+                "reason": "Campaign UI assets not needed",
+                "size_impact": "10-50KB per campaign",
+                "when_to_keep": "Frontend integration issues only"
+              },
+              {
+                "field": "campaigns[].plan_details.benefits",
+                "reason": "Detailed benefit definitions, keep summary only",
+                "size_impact": "5-20KB per campaign"
+              }
+            ]
+          },
+          "essential_for_debugging": [
+            "request-id",
+            "user-id",
+            "plan_types",
+            "asset_type",
+            "membership_status (response)",
+            "subscriptions[].subscription_id",
+            "subscriptions[].status",
+            "campaigns[].campaign_id",
+            "error"
+          ],
+          "estimated_size_reduction": "85-95%"
+        },
+        {
+          "name": "CreateUserMembership",
+          "description": "Creates new subscription for user",
+          "request_params_essential": [
+            "user_id",
+            "campaign_id",
+            "plan_type",
+            "purchase_details.service_order_id",
+            "purchase_details.service_type"
+          ],
+          "request_params_droppable": {
+            "always_drop": [
+              {
+                "field": "purchase_details.payment_fingerprint",
+                "reason": "Sensitive data, not needed in logs",
+                "size_impact": "0.5KB",
+                "security": "PII"
+              },
+              {
+                "field": "auto_renewal_details.payment_method_id",
+                "reason": "Sensitive payment data",
+                "size_impact": "0.2KB",
+                "security": "PII"
+              },
+              {
+                "field": "auto_renewal_details.payment_method_type",
+                "reason": "Not critical for subscription creation debugging",
+                "size_impact": "0.1KB"
+              }
+            ],
+            "response_droppable": [
+              {
+                "field": "subscription.benefits",
+                "reason": "Large array, not needed to verify creation",
+                "size_impact": "5-30KB"
+              },
+              {
+                "field": "subscription.campaign_details",
+                "reason": "Full campaign object, very verbose",
+                "size_impact": "10-50KB",
+                "alternative": "Keep campaign_id only"
+              },
+              {
+                "field": "subscription.purchase_details",
+                "reason": "Already in request, redundant in response",
+                "size_impact": "1-3KB"
+              }
+            ]
+          },
+          "essential_for_debugging": [
+            "user_id",
+            "campaign_id",
+            "plan_type",
+            "membership_id (response)",
+            "subscription.subscription_id",
+            "subscription.status",
+            "error"
+          ],
+          "estimated_size_reduction": "70-85%"
+        },
+        {
+          "name": "ProcessOrder",
+          "description": "Processes order to update subscription savings and rewards",
+          "request_params_essential": [
+            "order.user_id",
+            "order.service_order_id",
+            "order.service_type",
+            "order.order_amount",
+            "order.status",
+            "order.subscription_id",
+            "order.plan_type"
+          ],
+          "request_params_droppable": {
+            "always_drop": [
+              {
+                "field": "order.cart_details",
+                "reason": "Large cart object, not needed for reward processing",
+                "size_impact": "10-50KB"
+              },
+              {
+                "field": "order.billing_details",
+                "reason": "Customer details not used in savings calculation",
+                "size_impact": "1-3KB",
+                "security": "Contains PII (name, email, phone, address)"
+              },
+              {
+                "field": "order.meta_data.entity_name",
+                "reason": "Descriptive field, entity_id is sufficient",
+                "size_impact": "0.5KB"
+              },
+              {
+                "field": "order.payment_details",
+                "reason": "Not used in savings processing logic",
+                "size_impact": "1-5KB"
+              },
+              {
+                "field": "order.modification_details",
+                "reason": "Only relevant for specific cancellation/modification flows",
+                "size_impact": "0.5-2KB",
+                "when_to_keep": "Order modification/cancellation debugging"
+              },
+              {
+                "field": "order.external_order_id",
+                "reason": "Secondary identifier, service_order_id is primary",
+                "size_impact": "0.1KB"
+              }
+            ],
+            "response_droppable": [
+              {
+                "field": "processed_order_id",
+                "reason": "Same as request order_id, redundant",
+                "size_impact": "0.1KB"
+              }
+            ]
+          },
+          "essential_for_debugging": [
+            "order.user_id",
+            "order.service_order_id",
+            "order.service_type",
+            "order.subscription_id",
+            "order.status",
+            "order.savings[].amount",
+            "order.savings[].benefit_type",
+            "error"
+          ],
+          "estimated_size_reduction": "80-90%"
+        },
+        {
+          "name": "GetUserOrdersHistory",
+          "description": "Retrieves order history and wallet balance",
+          "request_params_essential": [
+            "user_id",
+            "request_filters.service_type"
+          ],
+          "request_params_droppable": {
+            "always_drop": [
+              {
+                "field": "request_filters.fetch_wallet_details",
+                "reason": "Boolean flag, minimal size but can be implied",
+                "size_impact": "0.01KB"
+              }
+            ],
+            "response_droppable": [
+              {
+                "field": "orders[]",
+                "reason": "Can be hundreds of orders, extremely large array",
+                "size_impact": "50-500KB",
+                "alternative": "Log count only: orders.length",
+                "when_to_keep": "Specific order investigation"
+              },
+              {
+                "field": "subscription_details.benefits",
+                "reason": "Large benefit array",
+                "size_impact": "5-30KB"
+              },
+              {
+                "field": "subscription_details.campaign_details",
+                "reason": "Verbose campaign object",
+                "size_impact": "10-50KB"
+              }
+            ]
+          },
+          "essential_for_debugging": [
+            "user_id",
+            "wallet_balance",
+            "subscription_details.subscription_id",
+            "subscription_details.status",
+            "orders.length (count)",
+            "error"
+          ],
+          "estimated_size_reduction": "90-95%"
+        },
+        {
+          "name": "GetOrderSubscriptionDetails",
+          "description": "Gets subscription details for an order",
+          "request_params_essential": [
+            "user_id",
+            "campaign_id",
+            "plan_type",
+            "purchase_details.service_order_id"
+          ],
+          "request_params_droppable": {
+            "always_drop": [
+              {
+                "field": "purchase_details.cost_price",
+                "reason": "Not used in subscription lookup",
+                "size_impact": "0.1KB"
+              },
+              {
+                "field": "purchase_details.payment_fingerprint",
+                "reason": "Sensitive data",
+                "size_impact": "0.5KB",
+                "security": "PII"
+              }
+            ],
+            "response_droppable": [
+              {
+                "field": "user_subscription.benefits",
+                "reason": "Large array not essential",
+                "size_impact": "5-30KB"
+              },
+              {
+                "field": "subscription_for_order.benefits",
+                "reason": "Large array not essential",
+                "size_impact": "5-30KB"
+              },
+              {
+                "field": "user_subscription.campaign_details",
+                "reason": "Verbose nested object",
+                "size_impact": "10-50KB"
+              },
+              {
+                "field": "subscription_for_order.campaign_details",
+                "reason": "Verbose nested object",
+                "size_impact": "10-50KB"
+              }
+            ]
+          },
+          "essential_for_debugging": [
+            "user_id",
+            "user_subscription.subscription_id",
+            "subscription_for_order.subscription_id",
+            "savings[].amount",
+            "error"
+          ],
+          "estimated_size_reduction": "85-92%"
+        },
+        {
+          "name": "UpdateUserMembershipStatus",
+          "description": "Updates subscription status",
+          "request_params_droppable": {
+            "always_drop": [
+              {
+                "field": "purchase_details.payment_fingerprint",
+                "reason": "Sensitive",
+                "size_impact": "0.5KB",
+                "security": "PII"
+              },
+              {
+                "field": "derived_details",
+                "reason": "Only relevant for derived subscriptions",
+                "size_impact": "0.5-2KB",
+                "when_to_keep": "Derived membership debugging"
+              }
+            ]
+          },
+          "estimated_size_reduction": "60-75%"
+        }
+      ]
+    },
+    "WorkerService": {
+      "service_path": "/eternal_district.membership.worker.WorkerService",
+      "methods": [
+        {
+          "name": "ProcessOrderEvent",
+          "description": "Processes order events from event stream",
+          "request_params_essential": [
+            "cart_details.customer_details.id",
+            "cart_details.type",
+            "cart_details.subscription_savings[].amount"
+          ],
+          "request_params_droppable": {
+            "always_drop": [
+              {
+                "field": "cart_details.items[]",
+                "reason": "Large array of cart items with nested details",
+                "size_impact": "20-100KB"
+              },
+              {
+                "field": "cart_details.discounts",
+                "reason": "Discount details not needed for membership processing",
+                "size_impact": "1-5KB"
+              },
+              {
+                "field": "cart_details.totals",
+                "reason": "Multiple total breakdowns, only grand_total matters",
+                "size_impact": "1-3KB"
+              },
+              {
+                "field": "cart_details.customer_details.name",
+                "reason": "PII, not needed",
+                "size_impact": "0.2KB",
+                "security": "PII"
+              },
+              {
+                "field": "cart_details.customer_details.email",
+                "reason": "PII, not needed",
+                "size_impact": "0.2KB",
+                "security": "PII"
+              },
+              {
+                "field": "cart_details.customer_details.phone",
+                "reason": "PII, not needed",
+                "size_impact": "0.2KB",
+                "security": "PII"
+              },
+              {
+                "field": "cart_details.payment_details",
+                "reason": "Payment info not used in membership logic",
+                "size_impact": "1-5KB"
+              },
+              {
+                "field": "order_state",
+                "reason": "Detailed state machine info, status is sufficient",
+                "size_impact": "1-5KB"
+              }
+            ]
+          },
+          "essential_for_debugging": [
+            "cart_details.customer_details.id",
+            "cart_details.type",
+            "cart_details.subscription_savings[].type",
+            "cart_details.subscription_savings[].amount",
+            "order_id",
+            "error"
+          ],
+          "estimated_size_reduction": "85-95%"
+        },
+        {
+          "name": "ProcessDiningPayEvent",
+          "description": "Processes dining pay events",
+          "request_params_droppable": {
+            "always_drop": [
+              {
+                "field": "consumer_order.order_items",
+                "reason": "Full menu items array with prices",
+                "size_impact": "10-50KB"
+              },
+              {
+                "field": "consumer_order.restaurant_details",
+                "reason": "Restaurant metadata not needed",
+                "size_impact": "1-5KB"
+              },
+              {
+                "field": "consumer_order.delivery_address",
+                "reason": "PII address data",
+                "size_impact": "0.5-2KB",
+                "security": "PII"
+              },
+              {
+                "field": "discounts[]",
+                "reason": "Discount details array",
+                "size_impact": "2-10KB"
+              }
+            ]
+          },
+          "essential_for_debugging": [
+            "consumer_order.order_id",
+            "consumer_order.user_id",
+            "subscription_discount.amount",
+            "error"
+          ],
+          "estimated_size_reduction": "80-90%"
+        }
+      ]
+    },
+    "OrderService": {
+      "service_path": "/eternal_district.membership.OrderService",
+      "methods": [
+        {
+          "name": "StoreOrderDetails",
+          "description": "Stores order in database",
+          "request_params_droppable": {
+            "always_drop": [
+              {
+                "field": "order.billing_details",
+                "reason": "Customer PII data",
+                "size_impact": "1-3KB",
+                "security": "PII (name, address, email, phone)"
+              },
+              {
+                "field": "order.cart_details",
+                "reason": "Large cart object",
+                "size_impact": "10-50KB"
+              },
+              {
+                "field": "order.payment_details",
+                "reason": "Payment info not needed for storage debugging",
+                "size_impact": "1-5KB"
+              },
+              {
+                "field": "order.meta_data.entity_name",
+                "reason": "Descriptive field",
+                "size_impact": "0.5KB"
+              }
+            ]
+          },
+          "essential_for_debugging": [
+            "order.service_order_id",
+            "order.user_id",
+            "order.service_type",
+            "order.subscription_id",
+            "order.status",
+            "processed_order_id (response)",
+            "error"
+          ],
+          "estimated_size_reduction": "75-88%"
+        },
+        {
+          "name": "GetOrderDetails",
+          "description": "Retrieves order from database",
+          "request_params_essential": [
+            "service_order_id",
+            "service_type",
+            "user_id"
+          ],
+          "request_params_droppable": {
+            "always_drop": []
+          },
+          "response_droppable": [
+            {
+              "field": "order.billing_details",
+              "reason": "PII",
+              "size_impact": "1-3KB",
+              "security": "PII"
+            },
+            {
+              "field": "order.cart_details",
+              "reason": "Large cart data",
+              "size_impact": "10-50KB"
+            },
+            {
+              "field": "order.payment_details",
+              "reason": "Payment info rarely needed",
+              "size_impact": "1-5KB"
+            }
+          ],
+          "essential_for_debugging": [
+            "order.service_order_id",
+            "order.user_id",
+            "order.status",
+            "order.subscription_id",
+            "order.savings",
+            "error"
+          ],
+          "estimated_size_reduction": "70-85%"
+        },
+        {
+          "name": "GetAllUserOrders",
+          "description": "Gets all orders for user",
+          "response_droppable": [
+            {
+              "field": "orders[]",
+              "reason": "Can be hundreds of orders",
+              "size_impact": "100-1000KB",
+              "alternative": "Log orders.length only",
+              "when_to_keep": "Investigating specific order issue"
+            },
+            {
+              "field": "orders[].billing_details",
+              "reason": "PII in each order",
+              "size_impact": "1-3KB per order",
+              "security": "PII"
+            },
+            {
+              "field": "orders[].cart_details",
+              "reason": "Cart data in each order",
+              "size_impact": "10-50KB per order"
+            }
+          ],
+          "essential_for_debugging": [
+            "user_id",
+            "orders.length",
+            "error"
+          ],
+          "estimated_size_reduction": "95-98%"
+        }
+      ]
+    },
+    "SubscriptionService": {
+      "service_path": "/eternal_district.membership.SubscriptionService",
+      "methods": [
+        {
+          "name": "CreateSubscription",
+          "description": "Creates subscription record",
+          "request_params_droppable": {
+            "always_drop": [
+              {
+                "field": "subscription.benefits",
+                "reason": "Large array, already validated",
+                "size_impact": "5-30KB"
+              },
+              {
+                "field": "subscription.campaign_details",
+                "reason": "Full campaign object",
+                "size_impact": "10-50KB"
+              },
+              {
+                "field": "subscription.purchase_details.payment_fingerprint",
+                "reason": "Sensitive",
+                "size_impact": "0.5KB",
+                "security": "PII"
+              }
+            ]
+          },
+          "response_droppable": [
+            {
+              "field": "subscription_id",
+              "reason": "Keep only the ID, not full object",
+              "alternative": "Return ID only"
+            }
+          ],
+          "essential_for_debugging": [
+            "subscription.user_id",
+            "subscription.plan_type",
+            "subscription.campaign_id",
+            "subscription_id (response)",
+            "error"
+          ],
+          "estimated_size_reduction": "80-90%"
+        },
+        {
+          "name": "GetSubscriptionDetails",
+          "description": "Retrieves subscription",
+          "response_droppable": [
+            {
+              "field": "subscription.benefits",
+              "reason": "Large benefit array",
+              "size_impact": "5-30KB",
+              "alternative": "Keep benefit count"
+            },
+            {
+              "field": "subscription.campaign_details",
+              "reason": "Verbose campaign object",
+              "size_impact": "10-50KB",
+              "alternative": "Keep campaign_id only"
+            },
+            {
+              "field": "subscription.previous_linked_subscription_ids",
+              "reason": "Historical data, rarely needed",
+              "size_impact": "0.1-1KB"
+            }
+          ],
+          "essential_for_debugging": [
+            "subscription.subscription_id",
+            "subscription.user_id",
+            "subscription.status",
+            "subscription.plan_type",
+            "subscription.duration",
+            "error"
+          ],
+          "estimated_size_reduction": "75-85%"
+        },
+        {
+          "name": "UpdateSubscriptionStatusForOrder",
+          "description": "Updates subscription status",
+          "request_params_droppable": {
+            "always_drop": [
+              {
+                "field": "purchase_details.payment_fingerprint",
+                "reason": "Sensitive",
+                "size_impact": "0.5KB",
+                "security": "PII"
+              }
+            ]
+          },
+          "response_droppable": [
+            {
+              "field": "subscription.benefits",
+              "reason": "Large array",
+              "size_impact": "5-30KB"
+            },
+            {
+              "field": "subscription.campaign_details",
+              "reason": "Verbose",
+              "size_impact": "10-50KB"
+            }
+          ],
+          "estimated_size_reduction": "75-85%"
+        },
+        {
+          "name": "ConfigureAutoRenewal",
+          "description": "Enables/disables auto-renewal",
+          "request_params_droppable": {
+            "always_drop": [
+              {
+                "field": "payment_details.payment_method_id",
+                "reason": "Sensitive payment data",
+                "size_impact": "0.2KB",
+                "security": "PII"
+              },
+              {
+                "field": "payment_details.payment_fingerprint",
+                "reason": "Sensitive",
+                "size_impact": "0.5KB",
+                "security": "PII"
+              }
+            ]
+          },
+          "essential_for_debugging": [
+            "user_id",
+            "subscription_id",
+            "action (ENABLE/DISABLE)",
+            "error"
+          ],
+          "estimated_size_reduction": "40-60%"
+        }
+      ]
+    },
+    "PlanService": {
+      "service_path": "/eternal_district.membership.PlanService",
+      "methods": [
+        {
+          "name": "GetPlanDetails",
+          "description": "Gets plan configuration",
+          "response_droppable": [
+            {
+              "field": "plan.benefits",
+              "reason": "Large benefit definitions",
+              "size_impact": "5-20KB"
+            },
+            {
+              "field": "plan.description",
+              "reason": "Descriptive text",
+              "size_impact": "0.5-2KB"
+            }
+          ],
+          "essential_for_debugging": [
+            "plan.plan_id",
+            "plan.plan_type",
+            "plan.cost_price",
+            "error"
+          ],
+          "estimated_size_reduction": "60-75%"
+        },
+        {
+          "name": "CreatePlan",
+          "description": "Creates new plan",
+          "request_params_droppable": {
+            "always_drop": [
+              {
+                "field": "plan.description",
+                "reason": "Long text",
+                "size_impact": "0.5-2KB"
+              },
+              {
+                "field": "plan.benefits",
+                "reason": "Already validated",
+                "size_impact": "5-20KB"
+              }
+            ]
+          },
+          "estimated_size_reduction": "70-80%"
+        },
+        {
+          "name": "GetAllPlans",
+          "description": "Lists all plans",
+          "response_droppable": [
+            {
+              "field": "plans[].benefits",
+              "reason": "Large array per plan",
+              "size_impact": "5-20KB per plan"
+            },
+            {
+              "field": "plans[].description",
+              "reason": "Text per plan",
+              "size_impact": "0.5-2KB per plan"
+            }
+          ],
+          "estimated_size_reduction": "75-85%"
+        }
+      ]
+    },
+    "CampaignService": {
+      "service_path": "/eternal_district.membership.CampaignService",
+      "methods": [
+        {
+          "name": "CreateCampaign",
+          "description": "Creates marketing campaign",
+          "request_params_droppable": {
+            "always_drop": [
+              {
+                "field": "campaign.assets",
+                "reason": "UI assets array",
+                "size_impact": "10-50KB"
+              },
+              {
+                "field": "campaign.description",
+                "reason": "Long marketing text",
+                "size_impact": "1-5KB"
+              }
+            ]
+          },
+          "estimated_size_reduction": "70-80%"
+        },
+        {
+          "name": "GetCampaignDetails",
+          "description": "Retrieves campaign",
+          "response_droppable": [
+            {
+              "field": "campaign.assets",
+              "reason": "Large UI assets",
+              "size_impact": "10-50KB"
+            },
+            {
+              "field": "campaign.plan_details.benefits",
+              "reason": "Detailed benefits",
+              "size_impact": "5-20KB"
+            }
+          ],
+          "estimated_size_reduction": "70-80%"
+        }
+      ]
+    }
+  },
+  "global_droppable_patterns": {
+    "pii_fields": [
+      "*.billing_details.customer_details.name",
+      "*.billing_details.customer_details.email",
+      "*.billing_details.customer_details.phone",
+      "*.billing_details.customer_details.address",
+      "*.payment_fingerprint",
+      "*.payment_method_id",
+      "*.delivery_address"
+    ],
+    "ui_fields": [
+      "*.assets",
+      "*.assets[]",
+      "*.campaign_details.assets",
+      "*.banner_image_url",
+      "*.logo_image_url",
+      "*.image_url"
+    ],
+    "verbose_arrays": [
+      "*.cart_details.cart_items",
+      "*.cart_details.items",
+      "*.benefits",
+      "*.order_items"
+    ],
+    "metadata_fields": [
+      "*.description",
+      "*.entity_name",
+      "*.ps_properties"
+    ]
+  },
+  "size_impact_summary": {
+    "typical_request_sizes": {
+      "GetApplicableCampaigns": {
+        "full": "50-100KB",
+        "filtered": "3-8KB",
+        "reduction": "92-94%"
+      },
+      "ProcessOrder": {
+        "full": "30-80KB",
+        "filtered": "3-6KB",
+        "reduction": "88-93%"
+      },
+      "GetUserOrdersHistory": {
+        "full": "100-1000KB",
+        "filtered": "2-5KB",
+        "reduction": "95-99%"
+      },
+      "StoreOrderDetails": {
+        "full": "30-70KB",
+        "filtered": "4-8KB",
+        "reduction": "85-90%"
+      }
+    }
+  },
+  "intelligent_filtering_rules": {
+    "rule_1": {
+      "condition": "error is not null",
+      "action": "Keep all essential fields + error context",
+      "drop": "All UI and verbose arrays"
+    },
+    "rule_2": {
+      "condition": "l-latency > 500ms",
+      "action": "Keep timing fields and all identifiers",
+      "drop": "Large response arrays and nested objects"
+    },
+    "rule_3": {
+      "condition": "request completed successfully",
+      "action": "Keep only identifiers and status",
+      "drop": "Full request body, response body, and all verbose fields"
+    },
+    "rule_4": {
+      "condition": "debugging specific user",
+      "action": "Keep relevant user-specific fields",
+      "drop": "System metadata and UI fields"
+    }
+  },
+  "llm_compaction_instructions": {
+    "trigger_conditions": [
+      "Log buffer reaches 50 messages",
+      "Total buffer size exceeds 5MB",
+      "High-frequency method (>10 calls/min)"
+    ],
+    "compaction_strategy": {
+      "keep_always": [
+        "First request of session",
+        "Last 5 requests",
+        "All error logs",
+        "Requests with l-latency > 500ms"
+      ],
+      "compact_candidates": [
+        "Successful requests in middle of session",
+        "Repeated successful calls to same method",
+        "Requests with l-latency < 100ms"
+      ],
+      "compaction_method": "Drop fields listed in 'droppable' sections while preserving essential fields",
+      "preserve_correlation": "Always keep request-id chain for tracing"
+    },
+    "output_format": {
+      "compacted_entry": {
+        "original_count": "number of logs compacted",
+        "time_range": "start-end timestamp",
+        "summary": {
+          "method_calls": "count by method",
+          "errors": "count of errors",
+          "avg_latency": "average latency"
+        },
+        "kept_logs": "array of essential/error logs",
+        "dropped_fields_summary": "list of dropped field types"
+      }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+
+version: '3.8'
+
+services:
+  sre-agent-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sre-agent-slack-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      # Persist vector database across container restarts
+      - ./code_vector_db:/app/code_vector_db
+      # Mount configs so they can be updated without rebuilding
+      - ./configs:/app/configs:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "python", "-c", "from agent import run_agent_with_session; print('ok')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

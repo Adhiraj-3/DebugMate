@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DebugMate - Simplified Flow: User Query to Response</title>
+    <style>
+        :root {
+            --bg: #0a0e14;
+            --surface: #151a23;
+            --border: #2d3748;
+            --text: #e2e8f0;
+            --heading: #60a5fa;
+            --accent: #f59e0b;
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .container { max-width: 1600px; margin: 0 auto; }
+        h1 {
+            text-align: center;
+            color: var(--heading);
+            font-size: 2.5em;
+            margin: 30px 0;
+            text-shadow: 0 2px 10px rgba(96, 165, 250, 0.3);
+        }
+        .subtitle {
+            text-align: center;
+            color: var(--accent);
+            font-size: 1.2em;
+            margin-bottom: 40px;
+            font-weight: 500;
+        }
+        .legend {
+            background: var(--surface);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 20px 30px;
+            margin: 30px 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .legend h3 {
+            grid-column: 1 / -1;
+            color: var(--heading);
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9em;
+        }
+        .legend-box {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+        .flowchart-section {
+            background: var(--surface);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 40px;
+            margin: 30px 0;
+            overflow-x: auto;
+        }
+        .mermaid {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .requirements-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .req-card {
+            background: linear-gradient(135deg, #1a1f2e 0%, #252b3d 100%);
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .req-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 25px rgba(96, 165, 250, 0.2);
+        }
+        .req-card h3 {
+            color: var(--accent);
+            margin-bottom: 15px;
+            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .req-card h3::before {
+            content: "🔧";
+            font-size: 1.3em;
+        }
+        .req-section {
+            margin: 15px 0;
+        }
+        .req-section h4 {
+            color: var(--info);
+            font-size: 0.95em;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .req-list {
+            list-style: none;
+            padding-left: 0;
+        }
+        .req-list li {
+            padding: 6px 0 6px 20px;
+            position: relative;
+            font-size: 0.9em;
+            color: #cbd5e1;
+        }
+        .req-list li::before {
+            content: "▸";
+            position: absolute;
+            left: 0;
+            color: var(--success);
+            font-weight: bold;
+        }
+        .data-flow {
+            background: #1c2128;
+            border-left: 4px solid var(--info);
+            padding: 12px 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.85em;
+            color: #e6edf3;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .status-active { background: #10b981; color: white; }
+        .status-disabled { background: #6b7280; color: white; }
+        .highlight-box {
+            background: rgba(96, 165, 250, 0.1);
+            border: 2px solid var(--info);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .highlight-box h4 {
+            color: var(--heading);
+            margin-bottom: 10px;
+        }
+        @media (max-width: 768px) {
+            .requirements-grid {
+                grid-template-columns: 1fr;
+            }
+            h1 { font-size: 1.8em; }
+        }
+    </style>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            }
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 DebugMate Complete Flow</h1>
+        <p class="subtitle">From User Query → LLM Decision → Tool Execution → Response</p>
+
+        <div class="legend">
+            <h3>🎨 Flowchart Legend</h3>
+            <div class="legend-item">
+                <div class="legend-box" style="background: #10b981;"></div>
+                <span>User Input / Start</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box" style="background: #8b5cf6;"></div>
+                <span>LLM Processing</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box" style="background: #3b82f6;"></div>
+                <span>API Calls</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box" style="background: #f59e0b;"></div>
+                <span>Data Processing</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box" style="background: #ec4899;"></div>
+                <span>Vector DB Operations</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box" style="background: #10b981;"></div>
+                <span>Success / Output</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box" style="background: #ef4444;"></div>
+                <span>Error / Disabled</span>
+            </div>
+        </div>
+
+        <div class="flowchart-section">
+            <div class="mermaid">
+flowchart TD
+    START["👤 USER QUERY
+    'Check logs for user 123
+    GetMembership method'"]
+    
+    START --> LLM_RECEIVE["🧠 LLM RECEIVES
+    System Prompt + User Query
+    
+    REQUIRED:
+    • AI_GATEWAY_CONFIG
+    • System prompt (~320 lines)
+    • Full conversation history"]
+    
+    LLM_RECEIVE --> LLM_ANALYZE["🤔 LLM ANALYZES
+    ReAct Pattern:
+    Reason → Act
+    
+    DECIDES:
+    Which tool to call?
+    What parameters?"]
+    
+    LLM_ANALYZE --> TOOL_DECISION{Tool Selection}
+    
+    %% TOOL 1: search_logstore
+    TOOL_DECISION -->|"Needs logs"| T1_CALL["🔍 TOOL 1: search_logstore
+    
+    PARAMETERS SENT:
+    • identifier: '123'
+    • rpc_method: 'GetMembership'
+    • hours_ago: 0
+    • errors_only: false
+    • environment: 'prod'"]
+    
+    T1_CALL --> T1_API["📡 API CALL
+    POST LOGSTORE_URL
+    
+    REQUIRES:
+    • LOGSTORE_URL (from .env)
+    • Auth headers
+    • Cookie (from .env)
+    • Timeout: 120s"]
+    
+    T1_API --> T1_RESPONSE{Response OK?}
+    T1_RESPONSE -->|"HTML (auth error)"| T1_ERROR["❌ Return: AUTH_REQUIRED"]
+    T1_RESPONSE -->|"JSON OK"| T1_EXTRACT["📥 EXTRACT LOGS
+    hits = data['hits']
+    Extract 'message' field
+    
+    RECEIVED: e.g., 47 log entries"]
+    
+    T1_EXTRACT --> T1_VECTOR["🧮 VECTOR DB INIT
+    
+    REQUIRES:
+    • Text-embedding model
+      (text-embedding-3-large)
+    • AI_GATEWAY_CONFIG
+    
+    CREATES:
+    Collection: s_sessionid_logs_Method_env
+    Type: InMemoryVectorStore"]
+    
+    T1_VECTOR --> T1_CLEAN["🧹 CLEAN LOGS
+    For each log:
+    • Remove newlines, tabs
+    • Extract key fields
+    • Drop config fields
+    • Remove stopwords
+    • Limit to 500 chars
+    
+    OUTPUT: Clean text for embedding"]
+    
+    T1_CLEAN --> T1_DEDUP["🔄 DEDUPLICATE
+    md5(log) → hash
+    Skip if already stored
+    
+    RESULT: e.g., 47 new docs"]
+    
+    T1_DEDUP --> T1_EMBED["📊 EMBED & STORE
+    
+    PROCESS:
+    1. Call AI Gateway Embeddings API
+    2. Generate vector for each log
+    3. store.add_texts(cleaned_logs)
+    
+    STORED: 47 vectors in memory"]
+    
+    T1_EMBED --> T1_REFINE["🎯 REFINE QUERY
+    
+    PROCESS:
+    • Load SERVICE_CONFIG context
+    • LLM generates refined query
+    
+    INPUT: 'user 123 GetMembership'
+    OUTPUT: 'GetMembership request user-id:123
+             membership status errors latency'"]
+    
+    T1_REFINE --> T1_SEARCH["🔎 SEMANTIC SEARCH
+    
+    PROCESS:
+    store.similarity_search(refined_query, k=10)
+    
+    RETURNS: Top 10 most relevant logs"]
+    
+    T1_SEARCH --> T1_RETURN["✅ RETURN TO LLM
+    
+    JSON:
+    {
+      total_hits: 47,
+      stored_in_vector_db: true,
+      relevant_logs_count: 10,
+      processed_logs: [...]
+    }"]
+    
+    %% TOOL 2: search_admin_apis
+    TOOL_DECISION -->|"Needs user data"| T2_CALL["🔍 TOOL 2: search_admin_apis
+    
+    PARAMETERS SENT:
+    • user_id: '123'
+    • plan_type: 'premium'
+    • search_context: 'subscription info'"]
+    
+    T2_CALL --> T2_CHECK{user_id == 777?}
+    T2_CHECK -->|"Yes (dummy)"| T2_DUMMY["❌ Return: No membership data"]
+    T2_CHECK -->|"No (real user)"| T2_API["📡 API CALL
+    POST EDITION_API_URL
+    
+    REQUIRES:
+    • EDITION_API_URL (from .env)
+    • EDITION_HEADERS
+    • Cookie (from .env)
+    
+    BODY:
+    {user_id, plan_type}"]
+    
+    T2_API --> T2_RESPONSE{HTTP OK?}
+    T2_RESPONSE -->|"Error"| T2_ERROR["❌ Return: ADMIN API ERROR"]
+    T2_RESPONSE -->|"Success"| T2_PARSE["📥 PARSE RESPONSE
+    
+    RECEIVED: User subscription JSON"]
+    
+    T2_PARSE --> T2_CLEAN["🧹 CLEAN DATA
+    remove_assets_and_images()
+    
+    REMOVES:
+    • assets
+    • image
+    • logo
+    • banner
+    • lottie
+    
+    OUTPUT: Clean subscription data"]
+    
+    T2_CLEAN --> T2_RETURN["✅ RETURN TO LLM
+    
+    FORMAT:
+    'ADMIN API - User: 123
+    {cleaned JSON}'"]
+    
+    %% TOOL 3: search_aws_cli
+    TOOL_DECISION -->|"Needs DynamoDB data"| T3_CALL["🔍 TOOL 3: search_aws_cli
+    
+    PARAMETERS SENT:
+    • table_name: 'user-table'
+    • partition_key: '123'"]
+    
+    T3_CALL --> T3_DYNAMO["📡 DYNAMODB QUERY
+    
+    REQUIRES:
+    • AWS credentials (boto3)
+    • AWS_CONFIG (from .env)
+    
+    PROCESS:
+    table = dynamodb.Table(table_name)
+    table.query(KeyConditionExpression)"]
+    
+    T3_DYNAMO --> T3_ITEMS["📥 GET ITEMS
+    items = response['Items']
+    
+    RECEIVED: List of DynamoDB items"]
+    
+    T3_ITEMS --> T3_ENCODE["🔄 ENCODE
+    json.dumps(items, cls=DecimalEncoder)
+    
+    CONVERTS: Decimal → float"]
+    
+    T3_ENCODE --> T3_RETURN["✅ RETURN TO LLM
+    
+    FORMAT:
+    'AWS DynamoDB - Table: user-table
+    {JSON items}'"]
+    
+    %% TOOL 4: search_codebase (DISABLED)
+    TOOL_DECISION -->|"Needs code"| T4_CALL["🔍 TOOL 4: search_codebase
+    
+    PARAMETERS SENT:
+    • search_context: 'GetMembership'
+    • keywords: 'implementation logic'"]
+    
+    T4_CALL --> T4_CHECK{retriever == None?}
+    T4_CHECK -->|"Yes (DISABLED)"| T4_DISABLED["❌ RETURN TO LLM
+    
+    'Code search is currently disabled'"]
+    
+    T4_CHECK -->|"No (if enabled)"| T4_ENHANCE["🔄 ENHANCE QUERY
+    enhanced = context + keywords"]
+    
+    T4_ENHANCE --> T4_RETRIEVE["📚 RETRIEVE CODE
+    docs = retriever.invoke(query)
+    
+    RETURNS: Code snippets"]
+    
+    T4_RETRIEVE --> T4_FORMAT["📝 FORMAT
+    Top 5 docs with:
+    • File path
+    • Code content"]
+    
+    T4_FORMAT --> T4_LLM["🧠 LLM ANALYZE
+    What does this code do?
+    Where is it?
+    How does it work?"]
+    
+    T4_LLM --> T4_RETURN["✅ RETURN TO LLM
+    Formatted code analysis"]
+    
+    %% All tools return to LLM
+    T1_RETURN --> LLM_PROCESS
+    T1_ERROR --> LLM_PROCESS
+    T2_RETURN --> LLM_PROCESS
+    T2_DUMMY --> LLM_PROCESS
+    T2_ERROR --> LLM_PROCESS
+    T3_RETURN --> LLM_PROCESS
+    T4_DISABLED --> LLM_PROCESS
+    T4_RETURN --> LLM_PROCESS
+    
+    LLM_PROCESS["🧠 LLM PROCESSES TOOL RESULT
+    
+    RECEIVES: ToolMessage with result
+    
+    ANALYZES:
+    • Parse tool output
+    • Extract key information
+    • Formulate response
+    
+    DECIDES:
+    • Need more tools?
+    • Ready to respond?"]
+    
+    LLM_PROCESS --> MORE_TOOLS{Need more data?}
+    MORE_TOOLS -->|"Yes"| TOOL_DECISION
+    MORE_TOOLS -->|"No"| LLM_FORMAT["📝 LLM FORMATS RESPONSE
+    
+    CREATES:
+    • Human-readable summary
+    • Key findings
+    • Actionable insights
+    
+    EXAMPLE:
+    'User 123 GetMembership call:
+    - Latency: 45ms
+    - Status: Success
+    - Plan: Premium
+    - No errors found'"]
+    
+    LLM_FORMAT --> SLACK_FORMAT["💬 FORMAT FOR SLACK
+    
+    PROCESS:
+    • Convert markdown
+    • Split if > 3900 chars
+    • Add formatting
+    
+    SENT VIA:
+    chat_postMessage()"]
+    
+    SLACK_FORMAT --> END["✅ USER RECEIVES RESPONSE
+    
+    Posted in Slack thread"]
+    
+    %% Styling
+    style START fill:#10b981,stroke:#059669,color:#fff,stroke-width:3px
+    style LLM_RECEIVE fill:#8b5cf6,stroke:#7c3aed,color:#fff,stroke-width:2px
+    style LLM_ANALYZE fill:#8b5cf6,stroke:#7c3aed,color:#fff,stroke-width:2px
+    style LLM_PROCESS fill:#8b5cf6,stroke:#7c3aed,color:#fff,stroke-width:2px
+    style LLM_FORMAT fill:#8b5cf6,stroke:#7c3aed,color:#fff,stroke-width:2px
+    
+    style T1_API fill:#3b82f6,stroke:#2563eb,color:#fff,stroke-width:2px
+    style T2_API fill:#3b82f6,stroke:#2563eb,color:#fff,stroke-width:2px
+    style T3_DYNAMO fill:#3b82f6,stroke:#2563eb,color:#fff,stroke-width:2px
+    
+    style T1_CLEAN fill:#f59e0b,stroke:#d97706,color:#fff,stroke-width:2px
+    style T1_DEDUP fill:#f59e0b,stroke:#d97706,color:#fff,stroke-width:2px
+    style T2_CLEAN fill:#f59e0b,stroke:#d97706,color:#fff,stroke-width:2px
+    style T3_ENCODE fill:#f59e0b,stroke:#d97706,color:#fff,stroke-width:2px
+    
+    style T1_VECTOR fill:#ec4899,stroke:#db2777,color:#fff,stroke-width:2px
+    style T1_EMBED fill:#ec4899,stroke:#db2777,color:#fff,stroke-width:2px
+    style T1_REFINE fill:#ec4899,stroke:#db2777,color:#fff,stroke-width:2px
+    style T1_SEARCH fill:#ec4899,stroke:#db2777,color:#fff,stroke-width:2px
+    
+    style T1_RETURN fill:#10b981,stroke:#059669,color:#fff,stroke-width:2px
+    style T2_RETURN fill:#10b981,stroke:#059669,color:#fff,stroke-width:2px
+    style T3_RETURN fill:#10b981,stroke:#059669,color:#fff,stroke-width:2px
+    style T4_RETURN fill:#10b981,stroke:#059669,color:#fff,stroke-width:2px
+    style END fill:#10b981,stroke:#059669,color:#fff,stroke-width:3px
+    
+    style T1_ERROR fill:#ef4444,stroke:#dc2626,color:#fff,stroke-width:2px
+    style T2_ERROR fill:#ef4444,stroke:#dc2626,color:#fff,stroke-width:2px
+    style T2_DUMMY fill:#ef4444,stroke:#dc2626,color:#fff,stroke-width:2px
+    style T4_DISABLED fill:#ef4444,stroke:#dc2626,color:#fff,stroke-width:2px
+            </div>
+        </div>
+
+        <div class="highlight-box">
+            <h4>🔑 Key Insight: ReAct Pattern (Reason + Act)</h4>
+            <p>The LLM doesn't just execute tools blindly. It follows a <strong>reasoning loop</strong>:</p>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li><strong>REASON:</strong> Analyze what information is needed</li>
+                <li><strong>ACT:</strong> Call the appropriate tool with correct parameters</li>
+                <li><strong>OBSERVE:</strong> Receive tool results</li>
+                <li><strong>REPEAT:</strong> If more info needed, call another tool</li>
+                <li><strong>RESPOND:</strong> When sufficient data collected, format final answer</li>
+            </ul>
+        </div>
+
+        <h2 style="color: var(--heading); margin: 40px 0 20px; text-align: center;">📋 Requirements & Data Flow by Tool</h2>
+        
+        <div class="requirements-grid">
+            <!-- TOOL 1 -->
+            <div class="req-card">
+                <h3>search_logstore <span class="status-badge status-active">Active</span></h3>
+                
+                <div class="req-section">
+                    <h4>🔐 Environment Variables Required</h4>
+                    <ul class="req-list">
+                        <li>LOGSTORE_URL</li>
+                        <li>LOGSTORE_AUTH (Authorization header)</li>
+                        <li>LOGSTORE_COOKIE (Session cookie)</li>
+                        <li>AI_GATEWAY_URL (for embeddings)</li>
+                        <li>AI_GATEWAY_PROJECT_NAME</li>
+                        <li>AI_GATEWAY_PROJECT_AUTH_KEY</li>
+                    </ul>
+                </div>
+                
+                <div class="req-section">
+                    <h4>📥 Input Parameters</h4>
+                    <ul class="req-list">
+                        <li>identifier (user_id)</li>
+                        <li>rpc_method (e.g., "GetMembership")</li>
+                        <li>hours_ago (default: 0)</li>
+                        <li>errors_only (boolean)</li>
+                        <li>environment (prod/stag)</li>
+                    </ul>
+                </div>
+                
+                <div class="req-section">
+                    <h4>🔄 Processing Steps</h4>
+                    <ul class="req-list">
+                        <li>Calculate time window (24hr)</li>
+                        <li>Build filter query</li>
+                        <li>POST to Logstore API</li>
+                        <li>Extract log messages</li>
+                        <li>Clean logs (remove noise)</li>
+                        <li>Hash-based deduplication</li>
+                        <li>Embed via AI Gateway</li>
+                        <li>Store in InMemoryVectorStore</li>
+                        <li>Refine search query via LLM</li>
+                        <li>Semantic similarity search</li>
+                    </ul>
+                </div>
+                
+                <div class="req-section">
+                    <h4>📤 Output Format</h4>
+                    <div class="data-flow">
+{
+  "total_hits": 47,
+  "stored_in_vector_db": true,
+  "relevant_logs_count": 10,
+  "processed_logs": [
+    "user-id:123 l-method:GetMembership latency:45ms status:success",
+    ...
+  ]
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- TOOL 2 -->
+            <div class="req-card">
+                <h3>search_admin_apis <span class="status-badge status-active">Active</span></h3>
+                
+                <div class="req-section">
+                    <h4>🔐 Environment Variables Required</h4>
+                    <ul class="req-list">
+                        <li>EDITION_API_URL</li>
+                        <li>EDITION_HEADERS (includes Cookie)</li>
+                    </ul>
+                </div>
+                
+                <div class="req-section">
+                    <h4>📥 Input Parameters</h4>
+                    <ul class="req-list">
+                        <li>search_context (query context)</li>
+                        <li>user_id (must not be 777)</li>
+                        <li>plan_type (e.g., "premium")</li>
+                    </ul>
+                </div>
+                
+                <div class="req-section">
+                    <h4>🔄 Processing Steps</h4>
+                    <ul class="req-list">
+                        <li>Validate user_id (777 = dummy)</li>
+                        <li>POST to Edition API</li>
+                        <li>Parse JSON response</li>
+                        <li>Clean (remove images/assets)</li>
+                        <li>Format for LLM</li>
+                    </ul>
+                </div>
+                
+                <div class="req-section">
+                    <h4>📤 Output Format</h4>
+                    <div class="data-flow">
+ADMIN API - User: 123
+{
+  "user_id": "123",
+  "plan": "premium",
+  "subscription_status": "active",
+  "features": [...],
+  // (assets/images removed)
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- TOOL 3 -->
+            <div class="req-card">
+                <h3>search_aws_cli <span class="status-badge status-active">Active</span></h3>
+                
+                <div class="req-section">
+                    <h4>🔐 Environment Variables Required</h4>
+                    <ul class="req-list">
+                        <li>AWS_ACCESS_KEY_ID</li>
+                        <li>AWS_SECRET_ACCESS_KEY</li>
+                        <li>AWS_REGION (e.g., "us-east-1")</li>
+                    </ul>
+                </div>
+                
+                <div class="req-section">
+                    <h4>📥 Input Parameters</h4>
+                    <ul class="req-list">
+                        <li>table_name (DynamoDB table)</li>
+                        <li>partition_key (query key)</li>
+                    </ul>
+                </div>
+                
+                <div class="req-section">
+                    <h4>🔄 Processing Steps</h4>
+                    <ul class="req-list">
+                        <li>Initialize boto3 DynamoDB client</li>
+                        <li>Get table resource</li>
+                        <li>Execute query with partition key</li>
+                        <li>Extract items from response</li>
+                        <li>Convert Decimal to float</li>
+                        <li>JSON serialize</li>
+                    </ul>
+                </div>
+                
+                <div class="req-section">
+                    <h4>📤 Output Format</h4>
+                    <div class="data-flow">
+AWS DynamoDB - Table: user-table
+[
+  {
+    "pk": "123",
+    "data": {...},
+    "timestamp": 1234567890.0
+  },
+  ...
+]
+                    </div>
+                </div>
+            </div>
+
+            <!-- TOOL 4 -->
+            <div class="req-card" style="opacity: 0.7;">
+                <h3>search_codebase <span class="status-badge status-disabled">Disabled</span></h3>
+                
+                <div class="req-section">
+                    <h4>🔐 Would Require (if enabled)</h4>
+                    <ul class="req-list">
+                        <li>Code repository access</li>
+                        <li>Embeddings model</li>
+                        <li>Vector store initialized</li>
+                        <li>Code retriever instance</li>
+                    </ul>
+                </div>
+                
+                <div class="req-section">
+                    <h4>📥 Input Parameters</h4>
+                    <ul class="req-list">
+                        <li>search_context (what to search)</li>
+                        <li>keywords (search terms)</li>
+                    </ul>
+                </div>
+                
+                <div class="req-section">
+                    <h4>🔄 Processing Steps (if enabled)</h4>
+                    <ul class="req-list">
+                        <li>Enhance query with context</li>
+                        <li>retriever.invoke(query)</li>
+                        <li>Get relevant code snippets</li>
+                        <li>Format top 5 results</li>
+                        <li>LLM analyzes code</li>
+                        <li>Return analysis</li>
+                    </ul>
+                </div>
+                
+                <div class="req-section">
+                    <h4>📤 Current Output</h4>
+                    <div class="data-flow" style="border-color: #6b7280;">
+"Code search is currently disabled"
+
+// retriever = None in codebase_tool.py
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="highlight-box" style="border-color: var(--accent);">
+            <h4>⚡ Performance Optimizations</h4>
+            <ul style="margin-left: 20px; margin-top: 10px; line-height: 1.8;">
+                <li><strong>Session-based Vector Stores:</strong> Logs stored once per session, reused for follow-up questions</li>
+                <li><strong>Hash Deduplication:</strong> Prevents storing same log multiple times</li>
+                <li><strong>Semantic Search:</strong> Returns only top 10 most relevant logs (not all 47)</li>
+                <li><strong>Query Refinement:</strong> LLM improves search query before vector search</li>
+                <li><strong>In-Memory Storage:</strong> Fast access, cleared at midnight</li>
+                <li><strong>Timeout Handling:</strong> API calls timeout after 120s (logstore) or 180s (LLM)</li>
+            </ul>
+        </div>
+
+        <div class="highlight-box" style="border-color: var(--error);">
+            <h4>⚠️ Common Failure Points</h4>
+            <ul style="margin-left: 20px; margin-top: 10px; line-height: 1.8;">
+                <li><strong>Logstore Auth:</strong> HTML response instead of JSON = invalid cookie/auth</li>
+                <li><strong>Embedding API:</strong> If all 3 models fail, vector DB disabled (falls back to simple dedup)</li>
+                <li><strong>Admin API:</strong> user_id=777 returns dummy data (test user)</li>
+                <li><strong>AWS Credentials:</strong> boto3 needs valid AWS keys or will fail</li>
+                <li><strong>Code Search:</strong> Currently disabled (retriever=None)</li>
+            </ul>
+        </div>
+
+    </div>
+</body>
+</html>
